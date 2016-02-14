@@ -7,6 +7,5 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-typedef enum {idle, want_in, in_cs} state;
 extern int turn;
-extern state flag[];
+extern int n;

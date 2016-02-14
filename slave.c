@@ -1,16 +1,14 @@
 #include "master.h"
-//typedef enum {idle, want_in, in_cs} state;
-//extern int turn;
-//extern state flag[]; // flag for each process in shared memory
 
+typedef enum {idle, want_in, in_cs} state;
+extern state flag[]; // flag for each process in shared memory
 extern int turn = 5; 
+
 main (int argc, char *argv[]) {
-	printf("Here");
 	printf("In slave: turn: %d\n", turn);
 	turn = atoi(argv[1]);
 	printf("In slave: turn: %d\n", turn);
 }
-
 /*
 process (const int i) {
 	int j; // local for each process
@@ -50,7 +48,6 @@ process (const int i) {
 	} while (numWrites < 3);
 } // end process() 
 */
-
 critical_section(int id) {
 	FILE *fp;
 	time_t tcurrent;
