@@ -1,14 +1,15 @@
 #include "master.h"
 
 //typedef enum {idle, want_in, in_cs} state;
-const int CREATE_NUM = 5;
-extern state *flag = idle; // flag for each process in shared memory
-extern intptr_t turn = 0; 
-extern int n = 0;
+const int p_n = 5;
+extern state *flag = want_in; // flag for each process in shared memory
+extern intptr_t turn = 1; 
+extern int n = 4;
 
 main (int argc, char *argv[]) {
 	int shmid = atoi(argv[2]); // shared turn in shm_id from parent process
 	int process_num = atoi(argv[1]); // process num sent from parent process
+	int p_index = process_num - 1;
 	int key = 1; // key for turn intptr_t is 1
 	int shmid_flag;
 	int key_flag = 21; // key for flag array is 21
@@ -16,24 +17,17 @@ main (int argc, char *argv[]) {
 
 	printf("Slave code: %d\n",process_num);	
 
-	// get and attach flag array
+	// get and attach flag array with key
 	shmid_flag = shmget(key_flag, sizeof(flag),IPC_CREAT | 0755);
-	//printf("shmget key_flag:%d:%d\n",key_flag,shmid_flag);
 	flag = (state*)shmat(shmid_flag,0,0);
-	//printf("In slave - %d - setting flag[%d]\n",process_num,process_num);
-	flag[process_num] = want_in;
 
-	// get and attach turn pointer
-	//shmid = shmget(key, sizeof(intptr_t),IPC_CREAT | 0755);
-	printf("Process Number: %d shmid: %d\n",process_num,shmid);
+	// attach turn pointer with turn shmid
 	turnptr = (int*)shmat(shmid,0,0);
 	memcpy(&turn,turnptr,sizeof(intptr_t));
-	printf("Slave setting turn ID: %d\n",shmid);
-	//turn = 2; // TODO do I need this cast
-	memcpy(turnptr,&turn,sizeof(intptr_t));
-	/*printf("ENTERING PROCESS(%d)",key); // TODO
-	process(key);
-	printf("EXIT FROM PROCESS(%d)",key);*/
+
+	// run process to write to file
+	process(p_index,turnptr);
+
 	// detach
 	shmdt(flag);
 	shmdt(&turn);
@@ -42,9 +36,9 @@ main (int argc, char *argv[]) {
 	*/
 }
 
-process (const int i) {
+process (const int i,int *turnptr) {
 	int j; // local for each process
-	int numWrites = 0;
+	int numWrites = 0; // var to only allow 3 writes each process
 	do {
 		do {
 			flag[i] = want_in; // raise my flag
@@ -52,7 +46,6 @@ process (const int i) {
 			while (j != i) { // while it's not my turn
 				j = (flag[j] != idle) ? turn : (j + 1 ) % n;
 			}
-
 			// Declare intention to enter critial section
 			flag[i] = in_cs;
 			// Check that no one else in critical section
@@ -62,23 +55,25 @@ process (const int i) {
 				}
 			}
 		} while ((j < n) || (turn != i && flag[turn] != idle));	
-	// Assign turn to self and enter critial section
-	turn = i;
-	fprintf(stderr, "Process %d entering critical section", i);
-	critical_section();
-	fprintf(stderr, "Process %d exiting critical section", i);
-	numWrites++; // counter for how many writes the process has done
-	// Exit critical section
-	j = (turn + 1) % n;
-	while (flag[j] == idle) {
-		j = (j + 1) % n;
-	}
+		// Assign turn to self and enter critial section
+		turn = i;
+		memcpy(turnptr,&turn,sizeof(intptr_t)); // copy so other processes see
+		fprintf(stderr, "Process %d entering critical section\n", (i+1));
+		critical_section(i+1);
+		fprintf(stderr, "Process %d exiting critical section\n", (i+1));
+		numWrites++; // counter for how many writes the process has done
+		// Exit critical section
+		j = (turn + 1) % n;
+		while (flag[j] == idle) {
+			j = (j + 1) % n;
+		}
 
-	// Assign turn to next waiting process; change own flag to idle
-	turn = j;
-	flag[i] = idle;
+		// Assign turn to next waiting process; change own flag to idle
+		turn = j;
+		memcpy(turnptr,&turn,sizeof(intptr_t)); // copy so other processes see
+		flag[i] = idle;
 
-	// remainder_section();
+		// remainder_section();
 	} while (numWrites < 3);
 	exit(0);
 } // end process() 
@@ -88,6 +83,8 @@ critical_section(int id) {
 	time_t tcurrent;
 	struct tm *timeinfo;
 	char *msg;
+	int r;
+	srandom(time(NULL));
 	time(&tcurrent);
 	timeinfo = localtime(&tcurrent);
 	// create/alloc memory for string
@@ -100,11 +97,13 @@ critical_section(int id) {
 		return -1;
 	}	
 	// sleep for 0-2 seconds
-	// TODO
+	r = random() % 3;
+	sleep(r);
 	// write to file
 	fprintf(fp, "%s", msg);
 	// sleep for 0-2 seconds
-	// TODO
+	r = random() % 3;
+	sleep(r);
 	// clean up
 	free(msg);
 	fclose(fp);

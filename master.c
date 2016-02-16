@@ -1,8 +1,9 @@
 #include "master.h"
 
-const int CREATE_NUM = 5;
-extern intptr_t turn = 0;
+const int p_n = 5;
+extern intptr_t turn = 1;
 extern state *flag = idle;
+extern int n = 4;
 
 main() {
 	char *arg1 = "slave"; // to send execl process argv[0]
@@ -26,21 +27,21 @@ main() {
 	}
 	//printf("shmget key_flag:%d:%d\n",flag_key,shm_id_flag);
 	flag = (state*)shmat(shm_id_flag,0,0);
-	for(i = 0; i < CREATE_NUM; i++) { // init all process flags to idle
-		flag[i] = idle;
+	for(i = 0; i < n ; i++) { // init all process flags to idle
+		flag[i] = want_in;
 	}
 	shmdt(flag);
 	// create shared turn intptr_t
 	shm_id = shmget(key, sizeof(intptr_t), IPC_CREAT | 0755);
-	printf("shmget id for turn:%d\n",shm_id);
+	//printf("shmget id for turn:%d\n",shm_id);
 	if (shm_id == -1) {
 		perror("shmget:");
 		exit(1);
 	}
 	// fork for each child process to create
 	sprintf(arg3,"%d",shm_id); // id for turn shared variable - same for all processes
-	for(key = 1; key <= CREATE_NUM; key++) {
-		sprintf(arg2,"%d",key);
+	for(i = 1; i <= p_n; i++) {
+		sprintf(arg2,"%d",p_n);
 		act_procs++;
 		pid = fork();
 		if (pid < 0) {
@@ -54,7 +55,7 @@ main() {
 		execl("slave", arg1, arg2, arg3, 0);
 	}
 	else if (pid > 0) { // parent process actions
-		for(i = 0; i < CREATE_NUM; i++) {
+		for(i = 0; i < n; i++) {
 			wait();
 			act_procs--;
 		}
@@ -64,7 +65,7 @@ main() {
 		shm_id_flag = shmget(flag_key, sizeof(flag),IPC_CREAT | 0755);
 		printf("shmget key_flag:%d:%d\n",flag_key,shm_id_flag);
 		flag = (state*)shmat(shm_id_flag,0,0);
-		for(i = 1; i <=CREATE_NUM;i++) {
+		for(i = 0; i <= n;i++) {
 			printf("Master: flag[%d]: %d\n",i,flag[i]);
 		}
 		shmdt(flag);
@@ -75,13 +76,13 @@ main() {
 		printf("Master-turn: %d\n",turn);
 		shmdt(turnptr);
 		// release shared memory for turn intptr_t
-		printf("Removing- turn  ID: %d\n",shm_id);
+		//printf("Removing- turn  ID: %d\n",shm_id);
 		if((shmctl(shm_id, IPC_RMID, NULL)) == -1){
 			perror("shmctl");
 			exit(1);
 		}
 		// release array shared memory
-		printf("Removing ID: shm_id_flag: %d\n",shm_id_flag);
+		//printf("Removing ID: shm_id_flag: %d\n",shm_id_flag);
 		if((shmctl(shm_id_flag, IPC_RMID, NULL)) == -1 ) {
 			perror("shmctl-flag");	
 			exit(1);
