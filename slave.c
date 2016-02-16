@@ -3,29 +3,35 @@
 //typedef enum {idle, want_in, in_cs} state;
 const int CREATE_NUM = 5;
 extern state *flag = idle; // flag for each process in shared memory
-extern intptr_t turn = 5; 
+extern intptr_t turn = 0; 
 extern int n = 0;
 
 main (int argc, char *argv[]) {
-	int shmid;
-	int key = atoi(argv[1]);
+	int shmid = atoi(argv[2]); // shared turn in shm_id from parent process
+	int process_num = atoi(argv[1]); // process num sent from parent process
+	int key = 1; // key for turn intptr_t is 1
 	int shmid_flag;
-	int key_flag = 21;
-	printf("Slave code: %d",key);	
+	int key_flag = 21; // key for flag array is 21
+	int *turnptr;
+
+	printf("Slave code: %d\n",process_num);	
 
 	// get and attach flag array
 	shmid_flag = shmget(key_flag, sizeof(flag),IPC_CREAT | 0755);
-	printf("shmget key_flag:%d:%d\n",key_flag,shmid_flag);
+	//printf("shmget key_flag:%d:%d\n",key_flag,shmid_flag);
 	flag = (state*)shmat(shmid_flag,0,0);
-	printf("In slave - %d - setting flag[%d]\n",key,key);
-	flag[key] = want_in;
+	//printf("In slave - %d - setting flag[%d]\n",process_num,process_num);
+	flag[process_num] = want_in;
+
 	// get and attach turn pointer
-	shmid = shmget(key, sizeof(intptr_t),IPC_CREAT | 0755);
-	printf("shmget key:%d:%d\n",key,shmid);
-	turn = (intptr_t)shmat(shmid,0,0);
+	//shmid = shmget(key, sizeof(intptr_t),IPC_CREAT | 0755);
+	printf("Process Number: %d shmid: %d\n",process_num,shmid);
+	turnptr = (int*)shmat(shmid,0,0);
+	memcpy(&turn,turnptr,sizeof(intptr_t));
 	printf("Slave setting turn ID: %d\n",shmid);
-	turn = (intptr_t)2;
-	/*printf("ENTERING PROCESS(%d)",key);
+	//turn = 2; // TODO do I need this cast
+	memcpy(turnptr,&turn,sizeof(intptr_t));
+	/*printf("ENTERING PROCESS(%d)",key); // TODO
 	process(key);
 	printf("EXIT FROM PROCESS(%d)",key);*/
 	// detach
