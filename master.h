@@ -9,11 +9,16 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdint.h>
+
 
 typedef enum {idle, want_in, in_cs} state;
-extern state *flag; // flag for each process in shared memory
-extern intptr_t turn;
-extern int n;
+
+typedef struct info_t {
+	state flag[18]; // flag for each process in shared memory
+	int turn; // says whose turn it is
+} info_t;
+
+extern info_t *s_info;
+
 
 #endif
