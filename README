@@ -11,3 +11,6 @@ Compile and run program with:
 	make clean will clean up additional files created from compilation. The designated write-to file, cstest, is not cleaned up and is appended to upon each run of master as the results file is requested for turn-in. Remove or empty the file to have a clean slate.
 
 	GitHub was used for version control. 1 day of changes was committed on a later day on accident. 'git log' should show the change log and all the work was done on this directory so /.git should contain all logs this time.
+
+On compilation, a warning occurs for extern variables. See this link for details on this: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45977. The way extern was used in the project follows example code we were supposed to use.
+
