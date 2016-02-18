@@ -1,0 +1,13 @@
+# cs4760assignment2
+# Brett Lindsay
+# 2/17/16
+
+Compile and run program with:
+	make
+	master
+
+	Optional argument to add an int as an argument (master [int]). The number given will change the timeout duration (in seconds) of the program from its default value (60 sec). Master.h implements a struct to hold the shared variables between processes. For clean-up when the timeout is reached, a system command, "killall slave", ensures all slave processes are cleaned up after signaling each process to end. Appropriate messages for SIGINTs received, timeout, and critical_section operations are displayed in stderr as specified in the assignment documentation.
+
+	make clean will clean up additional files created from compilation. The designated write-to file, cstest, is not cleaned up and is appended to upon each run of master as the results file is requested for turn-in. Remove or empty the file to have a clean slate.
+
+	GitHub was used for version control. 1 day of changes was committed on a later day on accident. 'git log' should show the change log and all the work was done on this directory so /.git should contain all logs this time.
