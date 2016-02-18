@@ -9,7 +9,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <signal.h>
 
 typedef enum {idle, want_in, in_cs} state;
 

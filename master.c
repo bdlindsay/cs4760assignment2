@@ -1,18 +1,31 @@
 #include "master.h"
 
+// master.c
+// Brett Lindsay
+// Project 2 CS4760
+
 const int p_n = 19; // process number to send each process
 const int n = 18; // its respective place in the flag array (1 less)
 extern info_t *s_info = NULL;
+char *arg2; // to send execl process args
+char *arg3; // to send execl process args
+void timeout();
+void free_mem();
 
 main() {
 	char *arg1 = "slave"; // to send execl process argv[0]
-	char *arg2 = malloc(sizeof(int)); // to send execl process args
-	char *arg3 = malloc(sizeof(int)); // to send execl process args
+	arg2 = malloc(sizeof(int)); // to send execl process args
+	arg3 = malloc(sizeof(int)); // to send execl process args
 	int pid;
 	int key = 20; // key of turn shared int
 	int shm_id; // shm_id of turn shared int
 	int act_procs = 0; // active process counter
 	int i = 0; // index var
+
+	// signal handling: timeout - 60s, on ctrl-c free memory allocated and quit
+	signal(SIGALRM,timeout);
+	signal(SIGINT,free_mem);
+	alarm(60);
 
 	// create shared info_t to hold flags and turn & error checking
 	if((shm_id = shmget(key, sizeof(info_t*),IPC_CREAT | 0755)) == -1) {
@@ -37,7 +50,7 @@ main() {
 		}
 		if (pid == 0) { // don't let children spawn more children
 			break;        // for clarity, could just use execl at this point
-		}	
+		}
 	}
 	if (pid == 0) { // children process actions
 		execl("slave", arg1, arg2, arg3, 0); // start a slave process
@@ -62,3 +75,29 @@ main() {
 	} // end else for pid > 0 -> parent process actions
 } // end main
 
+void free_mem() {
+	int shm_id;
+	int i; // counter
+	int key = 20; // key for info_t struct
+
+	// get the shm_id of s_info
+	if((shm_id = shmget(key, sizeof(info_t*),0755)) == -1) {
+		perror("shmget:");
+		exit(1);
+	}
+	// free allocated memory
+	if((shmctl(shm_id, IPC_RMID, NULL)) == -1) {
+		perror("shmctl:IPC_RMID");
+		exit(1);
+	}	
+	free(arg2);
+	free(arg3);
+	signal(SIGINT,SIG_DFL); // restore default action to SIGINT
+	raise(SIGINT); // take normal action for SIGINT after cleanup
+}
+
+void timeout() {
+	// timeout duration passed send SIGINT
+	signal(SIGALRM,timeout);
+	raise(SIGINT);
+}

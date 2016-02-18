@@ -1,18 +1,28 @@
 #include "master.h"
 
-//typedef enum {idle, want_in, in_cs} state;
+// slave.c
+// Brett Lindsay
+// Project 2 CS4760
+
 const int p_n = 19;
 const int n = 18;
 extern info_t *s_info = NULL; // shared info
+int process_num; // global to inform user on SIGINT
+char *msg; // global to release on SIGINT if necessary
+FILE *fp; // global to close on SIGINT if necessary
+
+void intr_handler();
 
 main (int argc, char *argv[]) {
 	int shm_id = atoi(argv[2]); // shared turn in shm_id from parent process
-	int process_num = atoi(argv[1]); // process num sent from parent process
+	process_num = atoi(argv[1]); // process num sent from parent process
 	int p_index = process_num - 1;
 	int key = 20; // key for *s_info is 20 
 	int rt_shm_id;
+	
+	signal(SIGINT,intr_handler);
 
-	printf("Slave code: %d\n",process_num);	
+	printf("Slave Process: %d\n",process_num);	
 
 	// get and attach *s_info with key  
 	rt_shm_id = shmget(key, sizeof(info_t*),IPC_CREAT | 0755);
@@ -86,10 +96,8 @@ process (const int i) {
 } // end process() 
 
 critical_section(int id) {
-	FILE *fp;
 	time_t tcurrent;
 	struct tm *timeinfo;
-	char *msg;
 	int r;
 	srandom(time(NULL));
 	// open file	
@@ -117,5 +125,26 @@ critical_section(int id) {
 
 	// clean up
 	free(msg);
+	msg = NULL;
 	fclose(fp);
+	fp = NULL;
+}
+
+void intr_handler() {
+	int pid;
+	info_t *tmp;
+	signal(SIGINT,SIG_DFL); // make sure handler stays defined
+	if (s_info != NULL)  { // if attached to shared memory, detach
+		shmdt(tmp);
+	}	
+	if (msg != NULL) { // if allocated memory, free it
+		free(msg);
+	}
+	if (fp != NULL) { // if file open, close it
+		fclose(fp);
+	}	
+	fprintf(stderr,"Recieved SIGINT: Process %d detached s_info and dying.\n",
+		process_num);
+	// let it do default actions for SIGINT by resending now
+	raise(SIGINT);
 }
