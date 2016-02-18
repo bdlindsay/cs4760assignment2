@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <signal.h>
 
+typedef enum {false, true} bool;
+
 typedef enum {idle, want_in, in_cs} state;
 
 typedef struct info_t {

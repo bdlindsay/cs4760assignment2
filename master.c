@@ -9,10 +9,12 @@ const int n = 18; // its respective place in the flag array (1 less)
 extern info_t *s_info = NULL;
 char *arg2; // to send execl process args
 char *arg3; // to send execl process args
+int pids[18] = { 0 };
+bool timed_out = false;
 void timeout();
 void free_mem();
 
-main() {
+main(int argc, char *argv[]) {
 	char *arg1 = "slave"; // to send execl process argv[0]
 	arg2 = malloc(sizeof(int)); // to send execl process args
 	arg3 = malloc(sizeof(int)); // to send execl process args
@@ -25,8 +27,15 @@ main() {
 	// signal handling: timeout - 60s, on ctrl-c free memory allocated and quit
 	signal(SIGALRM,timeout);
 	signal(SIGINT,free_mem);
-	alarm(60);
-
+	
+	if (argc > 1) { // user specified timeout period
+		i = atoi(argv[1]); 
+		fprintf(stderr,"Setting timeout for %d seconds\n",i);
+		alarm(i);
+	} else { // default
+		fprintf(stderr,"Setting timeout for 60 seconds (default)\n");
+		alarm(60);
+	}
 	// create shared info_t to hold flags and turn & error checking
 	if((shm_id = shmget(key, sizeof(info_t*),IPC_CREAT | 0755)) == -1) {
 		perror("shmget:");
@@ -44,12 +53,19 @@ main() {
 	for(i = 1; i <= p_n; i++) { // 1 through 19
 		sprintf(arg2,"%d", i); // var for process number for each process
 		act_procs++; // increment each time a new process is created
+		if (act_procs > 20) {
+			fprintf(stderr,"Too many processes created. Fatal error.");
+			raise(SIGINT);
+		}
 		pid = fork();
 		if (pid < 0) { // error checking
 			perror("fork:");
 		}
 		if (pid == 0) { // don't let children spawn more children
 			break;        // for clarity, could just use execl at this point
+		} else {
+			pids[(i-1)] = pid; // save each process pid
+
 		}
 	}
 	if (pid == 0) { // children process actions
@@ -60,11 +76,9 @@ main() {
 			wait(); 
 			act_procs--;
 		}
-		printf("In master-");
-		printf("processes=%d\n", act_procs);
+		printf("In master-finished tasks. Cleaning up and quiting.\n");
 
 		// release shared memory for s_info 
-		//printf("Removing- turn  ID: %d\n",shm_id);
 		if((shmctl(shm_id, IPC_RMID, NULL)) == -1){
 			perror("shmctl:IPC_RMID");
 			exit(1);
@@ -79,6 +93,15 @@ void free_mem() {
 	int shm_id;
 	int i; // counter
 	int key = 20; // key for info_t struct
+	
+	fprintf(stderr,"Received SIGINT. Cleaning up and quiting.\n");
+	// kill each process if program timed out
+	for(i = 0; i < 19; i++) { // 0-18
+		kill(pids[i],SIGINT); // kill child process
+		waitpid(pids[i],NULL,0);
+	}
+	// to be safe
+	system("killall slave");
 
 	// get the shm_id of s_info
 	if((shm_id = shmget(key, sizeof(info_t*),0755)) == -1) {
@@ -93,11 +116,12 @@ void free_mem() {
 	free(arg2);
 	free(arg3);
 	signal(SIGINT,SIG_DFL); // restore default action to SIGINT
-	raise(SIGINT); // take normal action for SIGINT after cleanup
+	raise(SIGKILL); // take normal action for SIGINT after cleanup
 }
 
 void timeout() {
 	// timeout duration passed send SIGINT
-	signal(SIGALRM,timeout);
+	timed_out = true;
+	fprintf(stderr,"Timeout duration reached.\n");
 	raise(SIGINT);
 }
